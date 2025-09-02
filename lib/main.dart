@@ -8,6 +8,7 @@ import 'screens/scanner_screen.dart';
 import 'screens/registration_screen.dart'; 
 import 'screens/login_screen.dart'; 
 import 'screens/TOS_screen.dart';
+import 'screens/profile_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
         '/registration': (context) => RegistrationScreen(),
         '/login': (context) => LoginScreen(),
         '/terms': (context) => TOSScreen(),
+        '/profile': (context) => ProfileScreen(),
       }
     );
   }

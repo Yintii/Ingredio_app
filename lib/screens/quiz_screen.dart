@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum QuestionType { multipleChoice, textInput, datePicker, checkList }
 
@@ -47,11 +51,11 @@ class QuizScreen extends StatefulWidget {
       "Dust",
       "Mold",
       "Mushroom",
-      "None of the bove"
+      "None of the Above"
     ]),
   ];
 
-  final Map<int, dynamic> answers = {}; // questionNumber -> answer(s)
+  final Map<int, dynamic> answers = {};
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -60,8 +64,8 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   int currentIndex = 0;
   bool quizStarted = false;
+  final String? url = dotenv.env['API_BASE_URL'];
 
-  // state holders
   String? selectedAnswer;
   List<String> selectedCheckList = [];
   final TextEditingController _textController = TextEditingController();
@@ -70,16 +74,65 @@ class _QuizScreenState extends State<QuizScreen> {
 
   String? selectedDate;
 
+  Future<void> submitAnswers() async {
+    debugPrint("Attempting to submit answers...");
+
+    final nameAnswer = widget.answers[1] as Map<String, String>;
+    final payload = {
+      "firstName": nameAnswer["firstName"],
+      "lastName": nameAnswer["lastName"],
+      "birthday": widget.answers[2],
+      "sex": widget.answers[3] == "Male" ? "M" : "F",
+      "skin_type": widget.answers[4],
+      "skin_issues": widget.answers[5],
+      "allergies": widget.answers[6],
+    };
+
+    debugPrint("Submitting payload: $payload");
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if(token == null){
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Missing token, please log in again")),
+      );
+      return;
+    }
+
+    final response = await http.post(
+      Uri.parse('$url/auth/submit_quiz'),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      debugPrint('✅ Successfully submitted data');
+      await prefs.setBool('has_taken_quiz', true);
+
+      // Redirect to home page after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/');
+        }
+      });
+    } else {
+      debugPrint('❌ Failed to submit data: ${response.body}');
+    }
+  }
+
   void nextQuestion(QuestionItem question) {
-    // save answer depending on type
-    if(question.questionNumber == 1){
-        widget.answers[question.questionNumber] = {
-          "firstName": _firstNameController.text,
-          "lastName": _lastNameController.text,
-        };
-        _firstNameController.clear();
-        _lastNameController.clear();
-    }else{
+    if (question.questionNumber == 1) {
+      widget.answers[question.questionNumber] = {
+        "firstName": _firstNameController.text,
+        "lastName": _lastNameController.text,
+      };
+      _firstNameController.clear();
+      _lastNameController.clear();
+    } else {
       switch (question.type) {
         case QuestionType.textInput:
           widget.answers[question.questionNumber] = _textController.text;
@@ -100,34 +153,35 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
 
-
     if (currentIndex < widget.questions.length) {
       setState(() {
         currentIndex++;
       });
-    } else {
-      // quiz finished
+    }
+
+    if (currentIndex >= widget.questions.length) {
       debugPrint("Quiz finished! Answers: ${widget.answers}");
+      submitAnswers();
       setState(() {});
     }
   }
 
-  void prevQuestion(){
-    if(currentIndex > 0){
-      setState((){
+  void prevQuestion() {
+    if (currentIndex > 0) {
+      setState(() {
         currentIndex--;
       });
     }
   }
 
   bool isAnswered(QuestionItem question) {
-    if(question.questionNumber == 1){
+    if (question.questionNumber == 1) {
       final f = _firstNameController.text.trim();
       final l = _lastNameController.text.trim();
       return f.length >= 3 &&
-        f.length <= 15 &&
-        l.length >= 3 &&
-        l.length <= 15;
+          f.length <= 15 &&
+          l.length >= 3 &&
+          l.length <= 15;
     }
     switch (question.type) {
       case QuestionType.textInput:
@@ -157,7 +211,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Welcome Screen
     if (!quizStarted) {
       return Scaffold(
         body: SafeArea(
@@ -165,8 +218,8 @@ class _QuizScreenState extends State<QuizScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
                   child: Text("Welcome to the Quiz"),
                 ),
                 ElevatedButton(
@@ -175,7 +228,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       quizStarted = true;
                     });
                   },
-                  child: Text('Start'),
+                  child: const Text('Start'),
                 ),
               ],
             ),
@@ -184,7 +237,6 @@ class _QuizScreenState extends State<QuizScreen> {
       );
     }
 
-    // Quiz Finished
     if (currentIndex >= widget.questions.length) {
       return Scaffold(
         body: SafeArea(
@@ -193,15 +245,18 @@ class _QuizScreenState extends State<QuizScreen> {
               padding: const EdgeInsets.all(16),
               shrinkWrap: true,
               children: [
-                Text(
+                const Text(
                   "Quiz Finished!",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 16),
+                const Text("You will be redirected to the home page in 5 seconds."),
+                const SizedBox(height: 16),
                 ...widget.questions.map((q) {
                   final answer = widget.answers[q.questionNumber];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child:Text("Q${q.questionNumber}: ${q.questionText}\nAnswer: $answer"),
+                    child: Text("Q${q.questionNumber}: ${q.questionText}\nAnswer: $answer"),
                   );
                 }),
               ],
@@ -234,29 +289,30 @@ class _QuizScreenState extends State<QuizScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    if (question.questionNumber == 1)
+                    if (question.questionNumber == 1) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                         child: TextField(
+                          onChanged: (_) => setState(() {}),
                           controller: _firstNameController,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             labelText: "First Name",
                           ),
-                        )
+                        ),
                       ),
-                      if (question.questionNumber == 1)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                         child: TextField(
+                          onChanged: (_) => setState(() {}),
                           controller: _lastNameController,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             labelText: "Last Name",
                           ),
-                        )
+                        ),
                       ),
-
+                    ],
                     if (question.type == QuestionType.textInput && question.questionNumber != 1)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -266,10 +322,9 @@ class _QuizScreenState extends State<QuizScreen> {
                             border: OutlineInputBorder(),
                             labelText: "Enter your answer",
                           ),
-                          onChanged: (_) => setState(() {}), // refresh for button state
+                          onChanged: (_) => setState(() {}),
                         ),
                       ),
-
                     if (question.type == QuestionType.datePicker) ...[
                       ElevatedButton(
                         onPressed: pickDate,
@@ -277,7 +332,6 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                       if (selectedDate != null) Text("Selected: $selectedDate"),
                     ],
-
                     if (question.type == QuestionType.multipleChoice)
                       ...question.answerChoices!.map(
                         (choice) => RadioListTile<String>(
@@ -291,7 +345,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           },
                         ),
                       ),
-
                     if (question.type == QuestionType.checkList)
                       ...question.answerChoices!.map(
                         (choice) => CheckboxListTile(
@@ -308,29 +361,24 @@ class _QuizScreenState extends State<QuizScreen> {
                           },
                         ),
                       ),
-
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton(
-                        onPressed: currentIndex > 0 
-                          ? () => prevQuestion()
-                          : null,
-                        child: Text("Prev")
-                      ),
-                    const SizedBox(width: 50),
-                    ElevatedButton(
-                      onPressed: isAnswered(question)
-                          ? () => nextQuestion(question)
-                          : null, // 🔒 locked until answered
-                      child: Text(
-                        currentIndex == widget.questions.length - 1
-                            ? 'Finish'
-                            : 'Next',
-                      ),
-                    ),
-                      ]
+                          onPressed: currentIndex > 0 ? () => prevQuestion() : null,
+                          child: const Text("Prev"),
+                        ),
+                        const SizedBox(width: 50),
+                        ElevatedButton(
+                          onPressed: isAnswered(question)
+                              ? () => nextQuestion(question)
+                              : null,
+                          child: Text(
+                            currentIndex == widget.questions.length - 1 ? 'Finish' : 'Next',
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
