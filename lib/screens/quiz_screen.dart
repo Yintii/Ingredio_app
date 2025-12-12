@@ -83,9 +83,9 @@ class _QuizScreenState extends State<QuizScreen> {
       "lastName": nameAnswer["lastName"],
       "birthday": widget.answers[2],
       "sex": widget.answers[3] == "Male" ? "M" : "F",
-      "skin_type": widget.answers[4],
       "skin_issues": widget.answers[5],
       "allergies": widget.answers[6],
+      "skin_type_id": widget.answers[4],
     };
 
     debugPrint("Submitting payload: $payload");

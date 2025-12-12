@@ -5,19 +5,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
   final String? url = dotenv.env['API_BASE_URL'];
+  
+
+  @override
+  void initState(){
+    super.initState();
+  }
 
   Future<void> _login() async {
     setState(() {
@@ -25,43 +32,73 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+    // Determine API URL based on platform
+    String? apiBase = dotenv.env['API_BASE_URL'];
+    if (apiBase == null) {
+      setState(() {
+        _errorMessage = "API_BASE_URL is not set in .env!";
+        _isLoading = false;
+      });
+      debugPrint("Error: API_BASE_URL is null");
+      return;
+    }
+
+    // On Android emulator, replace localhost with 10.0.2.2
+    if (apiBase.contains("localhost") && Theme.of(context).platform == TargetPlatform.android) {
+      apiBase = apiBase.replaceAll("localhost", "10.0.2.2");
+    }
+
+    final _email = _emailController.text.trim();
+    final _password = _passwordController.text.trim();
+
+    if(_email == '' || _password == ''){
+      setState(() {
+        _errorMessage = "Must enter both an email and a password!";
+        _isLoading = false;
+      });
+      return;
+    }
+
+
+    final loginUrl = '$apiBase/login';
+      final bodyJson = jsonEncode({
+      "email": _email,
+      "password": _password,
+    });
+
+    debugPrint("Attempting login to: $loginUrl");
+    debugPrint("Request body: $bodyJson");
+
     try {
-      final response = await http.post(
-        Uri.parse('$url/login'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": _emailController.text.trim(),
-          "password": _passwordController.text.trim(),
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(loginUrl),
+            headers: {"Content-Type": "application/json"},
+            body: bodyJson,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      debugPrint("Response status: ${response.statusCode}, body: ${response.body}");
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final token = body['token'];
 
-        // save JWT token to local storage
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', token);
 
-        // navigate to home page
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/');
         }
       } else {
         final body = jsonDecode(response.body);
-        debugPrint(body['error']);
-        setState(() {
-          _errorMessage = body['error'] ?? 'Login failed';
-        });
+        setState(() => _errorMessage = body['error'] ?? 'Login failed');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = "Something went wrong: $e";
-      });
+      debugPrint("Exception during login: $e");
+      setState(() => _errorMessage = "Something went wrong: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -87,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                 child: TextField(
+                  key: const Key('emailField'),
                   controller: _emailController,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
@@ -97,6 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                 child: TextField(
+                  key: const Key('passwordField'),
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
@@ -108,6 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
+                      key: const Key('loginButton'),
                       onPressed: _login,
                       child: const Text("Login"),
                     ),

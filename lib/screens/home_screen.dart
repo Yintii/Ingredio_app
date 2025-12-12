@@ -25,13 +25,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchUserStatus() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Check local first
     bool? localStatus = prefs.getBool('has_taken_quiz');
     if (localStatus != null) {
       setState(() {
         hasTakenQuiz = localStatus;
       });
-      // Redirect if quiz not taken
       if (!localStatus) {
         _redirectToQuiz();
       }
@@ -52,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
       },
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
@@ -60,10 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         hasTakenQuiz = taken;
       });
-      // Save locally
       await prefs.setBool('has_taken_quiz', taken);
 
-      // Redirect if quiz not taken
       if (!taken) {
         _redirectToQuiz();
       }
@@ -102,16 +98,38 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ingredient Checker'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            onPressed: () => _profile(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _logout(context),
-          ),
-        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                'Ingredient Checker',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_circle),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context); // close drawer
+                _profile(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context); // close drawer
+                _logout(context);
+              },
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: Center(

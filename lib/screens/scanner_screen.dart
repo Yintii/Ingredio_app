@@ -120,13 +120,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
       );
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text('ML Text Recognition'),
-      // ),
+      appBar: AppBar(
+        title: const Text('Scanner'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -136,7 +141,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
             ElevatedButton(
               onPressed: isRecognizing ? null : () async {
-                // Use Future.delayed to ensure modal opens after the button tap finishes
                 await Future.delayed(Duration.zero);
                 _showImageSourceOptions();
               },
@@ -149,9 +153,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
                     ),
                   ],
                 ],
@@ -166,14 +168,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Live Scan'),
-                  if(isRecognizing) ...[
+                  if (isRecognizing) ...[
                     const SizedBox(width: 20),
                     const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
                     ),
                   ],
                 ],
@@ -181,25 +181,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
             const Divider(),
             Padding(
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: 16,
-              ),
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     "Recognized Text",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.copy,
-                      size: 16,
-                    ),
+                    icon: const Icon(Icons.copy, size: 16),
                     onPressed: _copyTextToClipboard,
                   ),
                 ],
@@ -229,5 +220,5 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ),
       ),
     );
-  }
+  }  
 }
