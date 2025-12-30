@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:ingredio/config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -18,7 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
-  final String? url = dotenv.env['API_BASE_URL'];
+
+
   
 
   @override
@@ -32,21 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // Determine API URL based on platform
-    String? apiBase = dotenv.env['API_BASE_URL'];
-    if (apiBase == null) {
-      setState(() {
-        _errorMessage = "API_BASE_URL is not set in .env!";
-        _isLoading = false;
-      });
-      debugPrint("Error: API_BASE_URL is null");
-      return;
-    }
-
     // On Android emulator, replace localhost with 10.0.2.2
-    if (apiBase.contains("localhost") && Theme.of(context).platform == TargetPlatform.android) {
-      apiBase = apiBase.replaceAll("localhost", "10.0.2.2");
-    }
+    // if (apiBase.contains("localhost") && Theme.of(context).platform == TargetPlatform.android) {
+    //   apiBase = apiBase.replaceAll("localhost", "10.0.2.2");
+    // }
 
     final _email = _emailController.text.trim();
     final _password = _passwordController.text.trim();
@@ -60,7 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
 
-    final loginUrl = '$apiBase/login';
+    final url = await ApiConfig.baseUrl;
+
+    final loginUrl = '$url/login';
       final bodyJson = jsonEncode({
       "email": _email,
       "password": _password,

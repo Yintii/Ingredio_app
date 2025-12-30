@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ingredio/config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:http/http.dart' as http;
@@ -14,7 +15,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool? hasTakenQuiz;
-  final String? url = dotenv.env['API_BASE_URL'];
 
   @override
   void initState() {
@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchUserStatus() async {
     final prefs = await SharedPreferences.getInstance();
+    final url = await ApiConfig.baseUrl;
 
     bool? localStatus = prefs.getBool('has_taken_quiz');
     if (localStatus != null) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ingredio/config/api_config.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,6 +38,7 @@ class QuizScreen extends StatefulWidget {
       "Cystic Acne",
       "Acne Scarring",
       "Eczema",
+      "Dandruff",
       "Rough Texture",
       "Flakey",
       "Fine Lines",
@@ -64,7 +66,7 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   int currentIndex = 0;
   bool quizStarted = false;
-  final String? url = dotenv.env['API_BASE_URL'];
+  
 
   String? selectedAnswer;
   List<String> selectedCheckList = [];
@@ -75,6 +77,7 @@ class _QuizScreenState extends State<QuizScreen> {
   String? selectedDate;
 
   Future<void> submitAnswers() async {
+    final url = await ApiConfig.baseUrl;
     debugPrint("Attempting to submit answers...");
 
     final nameAnswer = widget.answers[1] as Map<String, String>;

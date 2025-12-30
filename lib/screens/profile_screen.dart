@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ingredio/config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? userData;
   bool isLoading = true;
-  final String? url = dotenv.env['API_BASE_URL'];
+
 
   @override
   void initState() {
@@ -25,7 +26,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
-
+    final url = await ApiConfig.baseUrl;
+    
     if (token == null) {
       setState(() {
         isLoading = false;

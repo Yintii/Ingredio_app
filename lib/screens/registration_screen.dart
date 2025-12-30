@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:ingredio/config/api_config.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -14,7 +15,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _passwordConfirmationController = TextEditingController();
-  final String? url = dotenv.env['API_BASE_URL'];
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -36,7 +36,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       });
       return;
     }
-
+    final url = await ApiConfig.baseUrl;
+    
     final _url = Uri.parse('$url/registration'); // match backend route
 
     try {
