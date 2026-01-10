@@ -15,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool? hasTakenQuiz;
+  String firstName = '';
 
   @override
   void initState() {
@@ -27,6 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final url = await ApiConfig.baseUrl;
 
     bool? localStatus = prefs.getBool('has_taken_quiz');
+    final localFirst = prefs.getString('first_name');
+    if (localFirst != null) {
+      setState(() {
+        firstName = localFirst;
+      });
+    }
     if (localStatus != null) {
       setState(() {
         hasTakenQuiz = localStatus;
@@ -46,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final response = await http.get(
-      Uri.parse('$url/auth/me'),
+      Uri.parse('$url/auth/profile'),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
@@ -56,6 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
       bool taken = body['has_taken_quiz'] ?? false;
+      final fetchedFirst = body['first_name'] as String?;
+      if (fetchedFirst != null && fetchedFirst.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('first_name', fetchedFirst);
+        setState(() {
+          firstName = fetchedFirst;
+        });
+      }
       setState(() {
         hasTakenQuiz = taken;
       });
@@ -86,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
     await prefs.remove('has_taken_quiz');
+    await prefs.remove('first_name');
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -97,25 +113,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ingredient Checker'),
-      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.blue,
+                color: Color(0xFF004730),
               ),
               child: Text(
-                'Ingredient Checker',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+                'Ingredio',
+                style: TextStyle(color: Colors.white, fontSize: 48, fontFamily: 'LobsterTwo'),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.account_circle),
-              title: const Text('Profile'),
+              title: Text(firstName),
               onTap: () {
                 Navigator.pop(context); // close drawer
                 _profile(context);
@@ -133,25 +146,53 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: hasTakenQuiz == null
-              ? const CircularProgressIndicator()
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text("Welcome to the app"),
+        child: hasTakenQuiz == null
+            ? const Center(child: CircularProgressIndicator())
+            : Stack(
+              fit: StackFit.expand,
+              children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Hello, $firstName!',
+                            style: const TextStyle(
+                              fontSize: 40,
+                              fontFamily: 'LobsterTwo',
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // other content can go here
+                        ],
+                      ),
                     ),
-                    ElevatedButton(
+                  ),
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: ElevatedButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/scanner');
                       },
-                      child: const Text('Scan Ingredients'),
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner,
+                        size: 50,
+                        color: Colors.white,
+                      ),
                     ),
-                  ],
-                ),
-        ),
+                  ),
+                ],
+              ),
       ),
     );
   }

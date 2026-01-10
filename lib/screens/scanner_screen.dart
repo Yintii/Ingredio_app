@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'dart:io';
 import '../helpers/image_preview.dart';
+import './scan_results_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
   ScannerScreen({super.key});
@@ -28,6 +31,27 @@ class _ScannerScreenState extends State<ScannerScreen> {
     imagePicker = ImagePicker();
   }
 
+  Future<File?> _cropImage(String imagePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+        sourcePath: imagePath,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: "Crop Image",
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            hideBottomControls: false,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(
+            title: "Crop Image",
+          ),
+        ],
+      );
+
+    if(croppedFile == null) return null;
+    return File(croppedFile.path);
+  }
+
   void _pickImageAndProcess({required ImageSource source}) async {
     final pickedImage = await imagePicker.pickImage(source: source);
 
@@ -35,17 +59,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
 
+    final croppedFile = await _cropImage(pickedImage.path);
+    if(croppedFile == null) return;
+
     setState(() {
-      pickedImagePath = pickedImage.path;
+      pickedImagePath = croppedFile.path;
       isRecognizing = true;
     });
 
     try {
-      final inputImage = InputImage.fromFilePath(pickedImage.path);
-      final RecognizedText recognisedText =
+      final inputImage = InputImage.fromFile(croppedFile);
+      final RecognizedText recognisedText = //with a s
           await textRecognizer.processImage(inputImage);
 
-      recognizedText = "";
+      recognizedText = ""; //with a z
 
       for (TextBlock block in recognisedText.blocks) {
         for (TextLine line in block.lines) {
@@ -63,6 +90,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ),
       );
     } finally {
+      if (recognizedText != ""){
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanResultsScreen(
+              imagePath: pickedImagePath!,
+              recognizedText: recognizedText,
+            ),
+          ),
+        );
+      }
       setState(() {
         isRecognizing = false;
       });
@@ -159,63 +197,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 ],
               ),
             ),
-            ElevatedButton(
-              onPressed: isRecognizing ? null : () async {
-                await Future.delayed(Duration.zero);
-                debugPrint('Start live camera feed');
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Live Scan'),
-                  if (isRecognizing) ...[
-                    const SizedBox(width: 20),
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Recognized Text",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 16),
-                    onPressed: _copyTextToClipboard,
-                  ),
-                ],
-              ),
-            ),
-            if (!isRecognizing) ...[
-              Expanded(
-                child: Scrollbar(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: SelectableText(
-                            recognizedText.isEmpty
-                                ? "No text recognized"
-                                : recognizedText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+
+
           ],
         ),
       ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ingredio/config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -98,14 +98,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Ingredient Checker"),
-      ),
       body: SafeArea(
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -114,6 +112,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text(
+                  "Ingredio",
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontFamily: 'LobsterTwo'),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                 child: TextField(
@@ -144,9 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _login,
                       child: const Text("Login"),
                     ),
-              const Spacer(),
               Padding(
-                padding: const EdgeInsets.only(bottom: 32),
+                padding: const EdgeInsets.only(top: 24, bottom: 8),
                 child: TextButton(
                   onPressed: () {
                     Navigator.pushNamed(context, '/registration');
@@ -161,6 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    )
     );
   }
 }

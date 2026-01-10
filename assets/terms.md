@@ -1,6 +1,6 @@
 # Terms of Service
 
-Welcome to MyApp!
+Welcome to Ingredio!
 
 By using this app, you agree to the following terms:
 
