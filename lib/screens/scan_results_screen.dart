@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 /// Dummy DB check helpers for illustration — replace with your actual backend/API calls
 Future<List<String>> getIngredientsFromDb(List<String> parsedIngredients) async {
@@ -47,10 +50,22 @@ class _ScanResultsScreenState extends State<ScanResultsScreen> {
   Map<String, List<String>> ingredientReport = {};
   bool isLoading = true;
 
+  late TextRecognizer textRecognizer;
+  late ImagePicker imagePicker;
+  bool isRecognizing = false;
+
   @override
   void initState() {
     super.initState();
+    textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    imagePicker = ImagePicker();
     _processIngredients();
+  }
+
+  @override
+  void dispose() {
+    textRecognizer.close();
+    super.dispose();
   }
 
   Future<void> _processIngredients() async {
@@ -80,6 +95,17 @@ class _ScanResultsScreenState extends State<ScanResultsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Results'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner),
+            onPressed: isRecognizing
+                ? null
+                : () async {
+                    await Future.delayed(Duration.zero);
+                    _showImageSourceOptions();
+                  },
+          ),
+        ],
       ),
       body: SafeArea(
         child: isLoading
@@ -98,6 +124,119 @@ class _ScanResultsScreenState extends State<ScanResultsScreen> {
                 ),
               ),
       ),
+    );
+  }
+
+  Future<File?> _cropImage(String imagePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: imagePath,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: "Crop Image",
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          hideBottomControls: false,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: "Crop Image",
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return null;
+    return File(croppedFile.path);
+  }
+
+  void _pickImageAndProcess({required ImageSource source}) async {
+    final pickedImage = await imagePicker.pickImage(source: source);
+
+    if (pickedImage == null) {
+      return;
+    }
+
+    final croppedFile = await _cropImage(pickedImage.path);
+    if (croppedFile == null) return;
+
+    setState(() {
+      isRecognizing = true;
+    });
+
+    String recognizedText = "";
+
+    try {
+      final inputImage = InputImage.fromFile(croppedFile);
+      final RecognizedText recognisedText =
+          await textRecognizer.processImage(inputImage);
+
+      for (TextBlock block in recognisedText.blocks) {
+        for (TextLine line in block.lines) {
+          recognizedText += "${line.text}\\n";
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error recognizing text: $e')),
+      );
+    } finally {
+      if (recognizedText.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanResultsScreen(
+              imagePath: croppedFile.path,
+              recognizedText: recognizedText,
+            ),
+          ),
+        );
+      }
+      if (mounted) {
+        setState(() {
+          isRecognizing = false;
+        });
+      }
+    }
+  }
+
+  void _showImageSourceOptions() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: ListTileTheme(
+            textColor: Colors.black,
+            iconColor: Colors.black,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Choose from gallery'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImageAndProcess(source: ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Take a picture'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImageAndProcess(source: ImageSource.camera);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -154,24 +293,18 @@ class _OverallVerdictCard extends StatelessWidget {
     final hasHelp = ingredientReport.values.any((v) => v.contains('Helps dandruff'));
 
     String message;
-    Color color;
 
     if (hasWarning && hasHelp) {
       message = 'Mixed results for your skin profile.';
-      color = Colors.orange.shade50;
     } else if (hasWarning) {
       message = 'Some ingredients may irritate your skin.';
-      color = Colors.red.shade50;
     } else if (hasHelp) {
       message = 'Ingredients appear beneficial for your skin issues!';
-      color = Colors.green.shade50;
     } else {
       message = 'No significant effects detected.';
-      color = Colors.grey.shade200;
     }
 
     return Card(
-      color: color,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -179,7 +312,7 @@ class _OverallVerdictCard extends StatelessWidget {
           children: [
             Icon(
               hasWarning ? Icons.warning_amber_rounded : Icons.check_circle_outline,
-              color: hasWarning ? Colors.orange : Colors.green,
+              color: hasWarning ? Colors.orangeAccent : Colors.greenAccent,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -220,13 +353,13 @@ class _IngredientsCard extends StatelessWidget {
 
               Color textColor;
               if (effects.isEmpty) {
-                textColor = Colors.black;
+                textColor = Colors.white;
               } else if (effects.any((e) => e.contains('worsen') || e.contains('irritate'))) {
-                textColor = Colors.red;
+                textColor = Colors.redAccent;
               } else if (effects.any((e) => e.contains('Helps'))) {
-                textColor = Colors.green;
+                textColor = Colors.greenAccent;
               } else {
-                textColor = Colors.orange;
+                textColor = Colors.orangeAccent;
               }
 
               return Padding(

@@ -4,7 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'dart:io';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'scan_results_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,11 +20,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool? hasTakenQuiz;
   String firstName = '';
+  late TextRecognizer textRecognizer;
+  late ImagePicker imagePicker;
+  bool isRecognizing = false;
 
   @override
   void initState() {
     super.initState();
     _fetchUserStatus();
+    textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    imagePicker = ImagePicker();
+  }
+
+  @override
+  void dispose() {
+    textRecognizer.close();
+    super.dispose();
   }
 
   Future<void> _fetchUserStatus() async {
@@ -175,8 +190,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     right: 16,
                     bottom: 16,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/scanner');
+                      onPressed: isRecognizing ? null : () async {
+                        await Future.delayed(Duration.zero);
+                        _showImageSourceOptions();
                       },
                       style: ElevatedButton.styleFrom(
                         shape: RoundedRectangleBorder(
@@ -194,6 +210,119 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
       ),
+    );
+  }
+
+  Future<File?> _cropImage(String imagePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: imagePath,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: "Crop Image",
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          hideBottomControls: false,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: "Crop Image",
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return null;
+    return File(croppedFile.path);
+  }
+
+  void _pickImageAndProcess({required ImageSource source}) async {
+    final pickedImage = await imagePicker.pickImage(source: source);
+
+    if (pickedImage == null) {
+      return;
+    }
+
+    final croppedFile = await _cropImage(pickedImage.path);
+    if (croppedFile == null) return;
+
+    setState(() {
+      isRecognizing = true;
+    });
+
+    String recognizedText = "";
+
+    try {
+      final inputImage = InputImage.fromFile(croppedFile);
+      final RecognizedText recognisedText =
+          await textRecognizer.processImage(inputImage);
+
+      for (TextBlock block in recognisedText.blocks) {
+        for (TextLine line in block.lines) {
+          recognizedText += "${line.text}\n";
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error recognizing text: $e')),
+      );
+    } finally {
+      if (recognizedText.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanResultsScreen(
+              imagePath: croppedFile.path,
+              recognizedText: recognizedText,
+            ),
+          ),
+        );
+      }
+      if (mounted) {
+        setState(() {
+          isRecognizing = false;
+        });
+      }
+    }
+  }
+
+  void _showImageSourceOptions() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: ListTileTheme(
+            textColor: Colors.white,
+            iconColor: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Choose from gallery'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImageAndProcess(source: ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Take a picture'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImageAndProcess(source: ImageSource.camera);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

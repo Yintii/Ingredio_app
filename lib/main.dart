@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/quiz_screen.dart'; 
-import 'screens/scanner_screen.dart'; 
 import 'screens/registration_screen.dart'; 
 import 'screens/login_screen.dart'; 
 import 'screens/TOS_screen.dart';
@@ -74,7 +73,7 @@ class MyApp extends StatelessWidget {
       home: const AuthGate(),
       routes: {
         '/quiz': (context) => QuizScreen(),
-        '/scanner': (context) => ScannerScreen(),
+        // scanner removed: use HomeScreen scan button to pick image
         '/registration': (context) => RegistrationScreen(),
         '/login': (context) => LoginScreen(),
         '/terms': (context) => TOSScreen(),
