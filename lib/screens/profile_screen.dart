@@ -216,12 +216,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 TextField(controller: first, decoration: const InputDecoration(labelText: 'First name')),
+                const SizedBox(height: 8),
                 TextField(controller: last, decoration: const InputDecoration(labelText: 'Last name')),
+                const SizedBox(height: 8),
                 TextField(controller: birthday, decoration: const InputDecoration(labelText: 'Birthday (YYYY-MM-DD)')),
+                const SizedBox(height: 8),
                 TextField(controller: sex, decoration: const InputDecoration(labelText: 'Sex')),
+                const SizedBox(height: 8),
                 TextField(controller: skinType, decoration: const InputDecoration(labelText: 'Skin type (name)')),
-                TextField(controller: skinIssues, decoration: const InputDecoration(labelText: 'Skin issues (comma separated)')),
-                TextField(controller: allergies, decoration: const InputDecoration(labelText: 'Allergies (comma separated)')),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () async {
